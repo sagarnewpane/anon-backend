@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-(quk5j77_og$9j1*p^(4b$f$*bw*bo$l=x7@w7a04$o%-=7iu$
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['192.168.1.122','127.0.0.1','localhost']
 
 
 # Application definition
@@ -52,6 +52,16 @@ MIDDLEWARE = [
     # Custome Middlewares
     'api.middlewares.DeviceUserMiddleware'
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_CLASSES': [
+        'api.throttles.DeviceIDThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'device_user': '2/minute'
+    }
+}
+
 
 ROOT_URLCONF = 'backend.urls'
 

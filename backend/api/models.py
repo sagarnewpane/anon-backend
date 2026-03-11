@@ -14,6 +14,8 @@ class Post(models.Model):
     upvote = models.IntegerField(default=0)
     downvote = models.IntegerField(default=0)
     reactions = models.JSONField(default=dict)
+    hot_score = models.FloatField(default=0.0, db_index=True) # Index for fast sorting
+    trending_score = models.IntegerField(default=0, db_index=True)
 
     
     

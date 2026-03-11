@@ -13,8 +13,3 @@ class PostSerializer(serializers.ModelSerializer):
         delta = timezone.now() - obj.created_at
         return format_timeago(delta)
         
-class VoteSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Vote
-        fields = '__all__'
-        read_only_fields = ['user_id', 'post_id']

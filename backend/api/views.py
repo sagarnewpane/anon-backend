@@ -1,19 +1,29 @@
 from django.http import JsonResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from .helpers.sorting_algos import update_hot_score
 from .models import Post, Vote
-from .serializers import PostSerializer, VoteSerializer
-from .helpers.ip import get_user_ip
+from .serializers import PostSerializer
 from django.db import transaction
 from django.db.models import F
 
 VALID_VOTES = {1, -1}
 
 class PostView(APIView):
-    def get(self,request):
+    def get(self, request):
+        sort = request.query_params.get('sort', 'new') # Default to 'new'
         posts = Post.objects.all()
-        serializer = PostSerializer(posts, many=True)
+
+        if sort == 'new':
+            posts = posts.order_by('-created_at')
+        elif sort == 'hot':
+            posts = posts.order_by('-hot_score')
+        elif sort == 'trending':
+            posts = posts.order_by('-trending_score')
+
+        serializer = PostSerializer(posts, many=True) 
         return Response(serializer.data)
+            
     
     def post(self, request):
         user = getattr(request, 'device_user', None) # Get the user from the request
@@ -32,6 +42,7 @@ class PostView(APIView):
 class VoteView(APIView):
 
     def post(self, request, id):
+
         user = getattr(request, 'device_user', None)
         if user is None:
             return JsonResponse({"error": "Device ID not found."})
@@ -54,6 +65,7 @@ class VoteView(APIView):
         with transaction.atomic():
             try:
                 post = Post.objects.select_for_update().get(id=id)
+                update_hot_score(post)
             except Post.DoesNotExist:
                 return Response({"error": "Post not found."}, status=404)
 
