@@ -11,14 +11,33 @@ class Post(models.Model):
     content = models.CharField(max_length=500)
     created_at = models.DateTimeField(auto_now_add=True)
     category = models.CharField()
-    # reactions = models.JSONField()
-    # upvote = models.IntegerField()
-    # downvote = models.IntegerField()
+    upvote = models.IntegerField(default=0)
+    downvote = models.IntegerField(default=0)
+    reactions = models.JSONField(default=dict)
+
+    
     
 
 class Vote(models.Model):
     user_id = models.ForeignKey(DeviceUser,on_delete=models.CASCADE)
-    post = models.ForeignKey(Post,on_delete=models.CASCADE)
-    upvote = models.BooleanField()
-    downvote = models.BooleanField()
-    reaction = models.CharField()
+    post_id = models.ForeignKey(Post,on_delete=models.CASCADE)
+    vote = models.SmallIntegerField(
+        choices=[(1, "Upvote"), (-1, "Downvote")],
+        null=True,
+        blank=True
+    )
+
+    reaction = models.CharField(
+        max_length=20,
+        choices=[
+            ("haha", "haha"),
+            ("relatable", "relatable"),
+            ("wtf", "wtf"),
+            ("ughh", "ughh"),
+            ("seriously", "seriously"),
+        ],
+        null=True,
+        blank=True
+    )
+    class Meta:
+        unique_together = ("user_id", "post_id")

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Post
+from .models import Post, Vote
 from .helpers.time_formatter import format_timeago
 from django.utils import timezone
 
@@ -13,3 +13,8 @@ class PostSerializer(serializers.ModelSerializer):
         delta = timezone.now() - obj.created_at
         return format_timeago(delta)
         
+class VoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Vote
+        fields = '__all__'
+        read_only_fields = ['user_id', 'post_id']
