@@ -8,6 +8,7 @@ class PostSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = '__all__'
+        read_only_fields = ['user_id']
     def get_created_at(self, obj):
         delta = timezone.now() - obj.created_at
         return format_timeago(delta)
