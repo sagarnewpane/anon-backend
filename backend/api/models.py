@@ -43,3 +43,12 @@ class Vote(models.Model):
     )
     class Meta:
         unique_together = ("user_id", "post_id")
+
+class Report(models.Model):
+    post_id = models.ForeignKey(Post, on_delete=models.CASCADE)
+    user_id = models.ForeignKey(DeviceUser, on_delete=models.CASCADE)
+    content = models.CharField(max_length=500)
+    reported_time = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("user_id", "post_id")

@@ -3,8 +3,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from .helpers.sorting_algos import update_hot_score
 from .models import Post, Vote
-from .serializers import PostSerializer
-from django.db import transaction
+from .serializers import PostSerializer,ReportSerializer
+from django.db import transaction, IntegrityError
 from django.db.models import F
 
 VALID_VOTES = {1, -1}
@@ -39,6 +39,37 @@ class PostView(APIView):
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
     
+
+class CategoryView(APIView):
+    def get(self,request):
+        category = request.query_params.get('category')
+        if not category:
+            return Response({"error": "category parameter is required."}, status=400)
+        posts = Post.objects.filter(category=category)
+        serializer = PostSerializer(posts, many=True) 
+        return Response(serializer.data)
+    
+
+class ReportView(APIView):
+    def post(self,request):
+        user = getattr(request, 'device_user', None) # Get the user from the request
+        if user is None:
+            return JsonResponse({"error": "Device ID not found."})
+        
+        if user.is_blacklisted:
+            return JsonResponse({"error": "You are banned"}, status=403)
+        
+        serializer = ReportSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                serializer.save(user_id=user)
+            except IntegrityError:
+                return Response({"error": "Already reported"}, status=409)
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+
+
 class VoteView(APIView):
 
     def post(self, request, id):
