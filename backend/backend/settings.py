@@ -128,4 +128,10 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+import os
+
+# This is the URL used to access static files in the browser
+STATIC_URL = '/static/'
+
+# This is where Django will PUSH all static files when you run 'collectstatic'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
