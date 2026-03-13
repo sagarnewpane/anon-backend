@@ -10,7 +10,7 @@ class Post(models.Model):
     title = models.CharField(max_length=200,)
     content = models.CharField(max_length=500)
     created_at = models.DateTimeField(auto_now_add=True)
-    category = models.CharField(max_length=30)
+    category = models.CharField(max_length=30, db_index=True)
     upvote = models.IntegerField(default=0)
     downvote = models.IntegerField(default=0)
     reactions = models.JSONField(default=dict)

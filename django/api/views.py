@@ -5,7 +5,8 @@ from .helpers.sorting_algos import update_hot_score
 from .models import Post, Vote
 from .serializers import PostSerializer,ReportSerializer
 from django.db import transaction, IntegrityError
-from django.db.models import F
+from django.db.models import F, Count
+from django.core.cache import cache
 
 VALID_VOTES = {1, -1}
 
@@ -48,6 +49,15 @@ class CategoryView(APIView):
         posts = Post.objects.filter(category=category)
         serializer = PostSerializer(posts, many=True) 
         return Response(serializer.data)
+    
+class CategoryCountView(APIView):
+    def get(self,request):
+        category_counts = cache.get('category_counts')
+        if not category_counts:
+            category_counts = list(Post.objects.values('category').annotate(count=Count('category')))
+            cache.set('category_counts', category_counts, timeout=30) # Cache for 5 minutes
+        return Response(category_counts)
+
     
 
 class ReportView(APIView):
