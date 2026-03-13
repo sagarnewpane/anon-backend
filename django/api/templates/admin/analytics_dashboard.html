@@ -1,0 +1,311 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Analytics Dashboard{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg-main: #f8fafc;
+    --bg-card: #ffffff;
+    --border: #e2e8f0;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --accent: #3b82f6;
+    --accent-bg: #eff6ff;
+    --success: #10b981;
+    --danger: #ef4444;
+    --radius: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-main: #0f1117;
+      --bg-card: #161822; /* Matches Django dark style nicely */
+      --border: #2a2d3a;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent-bg: rgba(59, 130, 246, 0.1);
+    }
+  }
+
+  body.dashboard-app { background: var(--bg-main) !important; color: var(--text-main); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  #content { background: var(--bg-main) !important; padding: 0 !important; border: none !important; }
+  
+  .dashboard-wrapper { max-width: 100%; margin: 0 auto; padding: 24px 32px; }
+  
+  /* Header */
+  .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+  .header-actions h1 { font-size: 24px; font-weight: 600; margin: 0; color: var(--text-main); letter-spacing: -0.5px; }
+  .btn-group { display: flex; gap: 12px; }
+  .btn-simple { padding: 8px 16px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); border-radius: var(--radius); text-decoration: none; font-size: 13px; font-weight: 500; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .btn-simple:hover { border-color: var(--text-muted); cursor: pointer; color: var(--text-main); }
+  
+  /* Add Animations */
+  @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .animate-up { animation: slideUp 0.5s ease-out forwards; opacity: 0; }
+  .d-1 { animation-delay: 0.05s; } .d-2 { animation-delay: 0.1s; } .d-3 { animation-delay: 0.15s; } .d-4 { animation-delay: 0.2s; }
+  .d-5 { animation-delay: 0.3s; }
+
+  /* Metrics */
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 32px; }
+  .metric-card { position: relative; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; }
+  .metric-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.04); border-color: var(--border); }
+  .metric-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: transparent; }
+  .card-blue::before { background: var(--accent); }
+  .card-green::before { background: var(--success); }
+  .card-purple::before { background: #8b5cf6; }
+  .card-red::before { background: var(--danger); }
+  
+  .metric-icon { position: absolute; top: 24px; right: 24px; font-size: 28px; opacity: 0.2; filter: grayscale(1); }
+  .metric-title { font-size: 13px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .metric-value { font-size: 34px; font-weight: 600; color: var(--text-main); margin-bottom: 6px; font-variant-numeric: tabular-nums; line-height: 1; letter-spacing: -0.5px; }
+  .metric-sub { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+  
+  .trend-badge { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 12px; }
+  .trend-up { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+  .trend-down { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+  .trend-neutral { background: rgba(100, 116, 139, 0.1); color: var(--text-muted); }
+  
+  .text-success { color: var(--success); font-weight: 500; }
+  .text-danger { color: var(--danger); font-weight: 500; }
+  
+  /* Charts */
+  .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 32px; }
+  .chart-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); display: flex; flex-direction: column; }
+  .chart-card h3 { font-size: 15px; font-weight: 600; margin: 0 0 20px 0; color: var(--text-main); }
+  .chart-container { position: relative; height: 300px; width: 100%; flex-grow: 1; }
+  
+  /* Tables */
+  .tables-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .table-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+  .table-card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .table-card-header h3 { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-main); }
+  .table-card-header a { font-size: 13px; color: var(--accent); text-decoration: none; font-weight: 500; }
+  
+  table.simple-table { width: 100%; border-collapse: collapse; }
+  .simple-table th, .simple-table td { padding: 12px 20px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--border); }
+  .simple-table th { color: var(--text-muted); font-weight: 500; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; background: rgba(0,0,0,0.01); }
+  .simple-table td { color: var(--text-main); }
+  .simple-table tr:last-child td { border-bottom: none; }
+  .simple-table tr:hover td { background: rgba(0,0,0,0.01); }
+  .simple-table a { color: var(--text-main); text-decoration: none; font-weight: 500; }
+  .simple-table a:hover { color: var(--accent); }
+  
+  .badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; background: var(--border); color: var(--text-muted); }
+  
+  /* Responsive */
+  @media (max-width: 900px) {
+    .charts-grid, .tables-grid { grid-template-columns: 1fr; }
+  }
+</style>
+<script>
+  // Helps override default django admin styles cleanly
+  document.addEventListener("DOMContentLoaded", () => document.body.classList.add("dashboard-app"));
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-wrapper">
+  
+  <div class="header-actions">
+    <h1>Overview</h1>
+    <div class="btn-group">
+      <a href="{% url 'admin:index' %}" class="btn-simple">Back to Admin</a>
+      <a href="" onclick="location.reload(); return false;" class="btn-simple">Refresh Data</a>
+    </div>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric-card card-blue animate-up d-1">
+      <div class="metric-icon">📝</div>
+      <div class="metric-title">Total Posts</div>
+      <div class="metric-value">{{ total_posts }}</div>
+      <div class="metric-sub">
+        {% if posts_today_change > 0 %}
+          <span class="trend-badge trend-up">↑ {{ posts_today_change }}%</span>
+        {% elif posts_today_change < 0 %}
+          <span class="trend-badge trend-down">↓ {{ posts_today_change }}%</span>
+        {% else %}
+          <span class="trend-badge trend-neutral">— 0%</span>
+        {% endif %} 
+        <span>vs yesterday</span>
+      </div>
+    </div>
+    
+    <div class="metric-card card-green animate-up d-2">
+      <div class="metric-icon">👥</div>
+      <div class="metric-title">Total Users</div>
+      <div class="metric-value">{{ total_users }}</div>
+      <div class="metric-sub">
+        <span class="text-success">{{ active_users }} active</span> 
+        <span style="color:var(--border)">&bull;</span>
+        <span class="text-danger">{{ banned_users }} banned</span>
+      </div>
+    </div>
+    
+    <div class="metric-card card-purple animate-up d-3">
+      <div class="metric-icon">⚡</div>
+      <div class="metric-title">Engagement</div>
+      <div class="metric-value">{{ engagement_rate|default:"0.0" }}</div>
+      <div class="metric-sub">Votes per post (7d avg)</div>
+    </div>
+
+    <div class="metric-card card-red animate-up d-4">
+      <div class="metric-icon">🚨</div>
+      <div class="metric-title">Action Required</div>
+      <div class="metric-value">{{ total_reports }}</div>
+      <div class="metric-sub">Reports currently open</div>
+    </div>
+  </div>
+
+  <div class="charts-grid animate-up d-5">
+    <div class="chart-card">
+      <h3>Growth & Activity Flow (Last 30 Days)</h3>
+      <div class="chart-container">
+        <canvas id="growthChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>Content By Category</h3>
+      <div class="chart-container">
+        <canvas id="categoryChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="tables-grid animate-up d-5">
+    <div class="table-card">
+      <div class="table-card-header">
+        <h3>Trending Posts</h3>
+        <a href="{% url 'admin:api_post_changelist' %}">View All</a>
+      </div>
+      <table class="simple-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Category</th>
+            <th>Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for post in top_posts|slice:":5" %}
+          <tr>
+            <td><a href="{% url 'admin:api_post_change' post.id %}">{{ post.title|truncatewords:6 }}</a></td>
+            <td><span class="badge">{{ post.category }}</span></td>
+            <td><strong>{{ post.net }}</strong></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 24px;">No posts available</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="table-card">
+      <div class="table-card-header">
+        <h3>Recent Reports</h3>
+        <a href="{% url 'admin:api_report_changelist' %}">Manage</a>
+      </div>
+      <table class="simple-table">
+        <thead>
+          <tr>
+            <th>Reported Post</th>
+            <th>Reason</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for report in recent_reports|slice:":5" %}
+          <tr>
+            <td><a href="{% url 'admin:api_post_change' report.post_id.id %}">{{ report.post_id.title|truncatewords:4 }}</a></td>
+            <td style="color: var(--text-muted);">{{ report.content|truncatewords:6 }}</td>
+            <td style="color: var(--text-muted); font-size: 12px;">{{ report.reported_time|timesince }} ago</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 24px;">All caught up! 🎉</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+</div>
+
+<script>
+  // Seamless light/dark adaptation for Chart.js
+  const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  Chart.defaults.color = isDark ? '#94a3b8' : '#64748b';
+  Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  const gridColor = isDark ? '#2a2d3a' : '#f1f5f9';
+  const tooltipBg = isDark ? '#1e293b' : '#ffffff';
+  const tooltipText = isDark ? '#f8fafc' : '#0f172a';
+
+  // Add chart gradient
+  const ctx = document.getElementById('growthChart').getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+  gradient.addColorStop(0, isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.15)');
+  gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+
+  // 1. Growth Line Chart
+  new Chart(document.getElementById('growthChart'), {
+    type: 'line',
+    data: {
+      labels: {{ posts_dates|safe }},
+      datasets: [
+        {
+          label: 'New Posts',
+          data: {{ posts_counts|safe }},
+          borderColor: '#3b82f6',
+          backgroundColor: gradient,
+          fill: true, tension: 0.4, borderWidth: 2.5, pointRadius: 0, hitRadius: 10, pointHoverRadius: 5
+        },
+        {
+          label: 'New Users',
+          data: {{ users_counts|safe }},
+          borderColor: '#10b981',
+          fill: false, tension: 0.4, borderWidth: 2.5, pointRadius: 0, hitRadius: 10, pointHoverRadius: 5,
+          borderDash: [5, 4]
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { 
+        legend: { position: 'top', align: 'end', labels: { boxWidth: 12, usePointStyle: true } },
+        tooltip: { backgroundColor: tooltipBg, titleColor: tooltipText, bodyColor: tooltipText, borderColor: gridColor, borderWidth: 1 }
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, grid: { color: gridColor }, border: { display: false } }
+      }
+    }
+  });
+
+  // 2. Category Doughnut Chart
+  new Chart(document.getElementById('categoryChart'), {
+    type: 'doughnut',
+    data: {
+      labels: {{ cat_labels|safe }},
+      datasets: [{
+        data: {{ cat_counts|safe }},
+        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#6366f1', '#14b8a6', '#f43f5e'],
+        borderWidth: isDark ? 2 : 0, 
+        borderColor: isDark ? '#161822' : '#ffffff',
+        hoverOffset: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '75%',
+      plugins: { 
+        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20, font: { size: 12 } } },
+        tooltip: { backgroundColor: tooltipBg, titleColor: tooltipText, bodyColor: tooltipText, borderColor: gridColor, borderWidth: 1 }
+      }
+    }
+  });
+</script>
+{% endblock %}
